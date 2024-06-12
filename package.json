@@ -4,7 +4,8 @@
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "format": "prettier --write **/**/*.{ts,json}"
+    "format": "prettier --write **/**/*.{ts,json}",
+    "build": "rm -rf build && npx tsc -p ."
   },
   "keywords": [],
   "author": "",
@@ -14,6 +15,7 @@
     "@orbs-network/ton-access": "^2.3.3",
     "@ton/core": "^0.56.3",
     "@ton/ton": "^13.11.2",
+    "axios": "^1.7.2",
     "cors": "^2.8.5",
     "express": "^4.19.2",
     "lodash": "^4.17.21",

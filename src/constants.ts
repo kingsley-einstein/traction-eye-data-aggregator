@@ -12,3 +12,13 @@ export enum HttpStatusCodes {
   BAD_REQUEST = 400,
   FORBIDDEN = 403,
 }
+
+export enum LPSourceIdentifiers {
+  STON_FI = "ston.fi",
+  DEDUST = "dedust",
+}
+
+export enum HttpResponseTypes {
+  SUCCESS = "SUCCESS",
+  FAILED = "FAILED",
+}

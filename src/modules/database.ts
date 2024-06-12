@@ -12,6 +12,7 @@ import {
 import { ServiceNames } from "../constants";
 import { join } from "path";
 import { ExcludeFuctionsMapper, OptionalKeysMapper } from "../utils/mappers";
+import { SnakeNamingStrategy } from "typeorm-naming-strategies";
 
 type WhichDBServer = "ston.fi" | "dedust";
 
@@ -71,7 +72,7 @@ class LocalDataSource {
       port: 5432,
       username: "postgres",
       password: "postgres",
-      databaseName: "_tracker_eye",
+      databaseName: "_traction_eye",
     }
   ) {
     // Set default values;
@@ -79,7 +80,7 @@ class LocalDataSource {
     opts.port = opts.port ?? 5432;
     opts.password = opts.password ?? "postgres";
     opts.whichDBServer = opts.whichDBServer ?? "ston.fi";
-    opts.databaseName = opts.databaseName ?? "_tracker_eye";
+    opts.databaseName = opts.databaseName ?? "_traction_eye";
     opts.migrations = opts.migrations ?? ([] as string[]).concat(join(__dirname, "/migrations/*.{ts,js}"));
     opts.entities =
       opts.entities ??
@@ -97,6 +98,7 @@ class LocalDataSource {
       entities: opts.entities,
       subscribers: opts.subscribers,
       logging: opts.log,
+      namingStrategy: new SnakeNamingStrategy(),
     };
 
     // Set datasource
@@ -142,7 +144,7 @@ class LocalDataSource {
     return this.DS.isInitialized;
   }
 
-  public async insertEntity<T extends EntityTarget<ObjectLiteral>>(target: T, values: ExcludeFuctionsMapper<T>) {
+  public async insertEntity<T>(target: EntityTarget<T>, values: ExcludeFuctionsMapper<T>) {
     try {
       const value = await this.DS.getRepository(target).save(values);
       return value;
@@ -151,8 +153,8 @@ class LocalDataSource {
     }
   }
 
-  public async querySingleEntity<T extends EntityTarget<ObjectLiteral>>(
-    target: T,
+  public async querySingleEntity<T>(
+    target: EntityTarget<T>,
     where: FindOptionsWhere<T> | FindOptionsWhere<T>[],
     relations?: FindOptionsRelations<T>
   ) {
@@ -164,8 +166,8 @@ class LocalDataSource {
     }
   }
 
-  public async queryManyEntities<T extends EntityTarget<ObjectLiteral>>(
-    target: T,
+  public async queryManyEntities<T>(
+    target: EntityTarget<T>,
     where?: FindOptionsWhere<T> | FindOptionsWhere<T>[],
     order?: FindOptionsOrder<T>,
     relations?: FindOptionsRelations<T>,
@@ -180,7 +182,7 @@ class LocalDataSource {
     }
   }
 
-  public async updateEntity<T extends EntityTarget<ObjectLiteral>>(target: T, values: OptionalKeysMapper<T>) {
+  public async updateEntity<T>(target: EntityTarget<T>, values: ExcludeFuctionsMapper<OptionalKeysMapper<T>>) {
     try {
       const value = await this.DS.getRepository(target).save(values);
       return value;
@@ -189,7 +191,7 @@ class LocalDataSource {
     }
   }
 
-  public async deleteEntity<T extends EntityTarget<ObjectLiteral>>(target: T, where: FindOptionsWhere<T>) {
+  public async deleteEntity<T>(target: EntityTarget<T>, where: FindOptionsWhere<T>) {
     try {
       const result = await this.DS.getRepository(target).delete(where);
       return result;
@@ -198,7 +200,7 @@ class LocalDataSource {
     }
   }
 
-  public async entityExists<T extends EntityTarget<ObjectLiteral>>(target: T, where: FindOptionsWhere<T>) {
+  public async entityExists<T>(target: EntityTarget<T>, where: FindOptionsWhere<T>) {
     try {
       const value = await this.DS.getRepository(target).existsBy(where);
       return value;
@@ -207,9 +209,9 @@ class LocalDataSource {
     }
   }
 
-  public async countEntities<T extends EntityTarget<ObjectLiteral>>(target: T, where?: FindOptionsWhere<T>) {
+  public async countEntities<T>(target: EntityTarget<T>, where?: FindOptionsWhere<T>) {
     try {
-      const value = await this.DS.getRepository(target).count({ where });
+      const value = await this.DS.getRepository<T>(target).count({ where });
       return value;
     } catch (error) {
       throw error;

@@ -17,16 +17,16 @@ interface OperationResponse<T> {
   error?: any;
 }
 
-class LocalDataSourceAccessor<T extends EntityTarget<ObjectLiteral>> {
-  target?: T;
+class LocalDataSourceAccessor<T extends ObjectLiteral> {
+  target?: EntityTarget<T>;
   DS?: LocalDataSourceType;
 
-  constructor(DS: LocalDataSourceType, trgt: T) {
+  constructor(DS: LocalDataSourceType, trgt: EntityTarget<T>) {
     this.target = trgt;
     this.DS = DS;
   }
 
-  static constructMainDefault<S extends EntityTarget<ObjectLiteral>>(trgt: S) {
+  static constructMainDefault<S extends ObjectLiteral>(trgt: EntityTarget<S>) {
     const defaultDS = initializeDS();
     return new LocalDataSourceAccessor<S>(defaultDS, trgt);
   }
@@ -52,7 +52,7 @@ class LocalDataSourceAccessor<T extends EntityTarget<ObjectLiteral>> {
   async readEntity(
     where: FindOptionsWhere<T> | FindOptionsWhere<T>[],
     relations?: FindOptionsRelations<T>
-  ): Promise<OperationResponse<ObjectLiteral | null>> {
+  ): Promise<OperationResponse<T | null>> {
     this.checkTargetAndDataSource();
     try {
       const data = await this.DS!.querySingleEntity(this.target!, where, relations);
@@ -68,7 +68,7 @@ class LocalDataSourceAccessor<T extends EntityTarget<ObjectLiteral>> {
     relations?: FindOptionsRelations<T>,
     skip: number = 0,
     take?: number
-  ): Promise<OperationResponse<ObjectLiteral[]>> {
+  ): Promise<OperationResponse<T[]>> {
     this.checkTargetAndDataSource();
     try {
       const data = await this.DS!.queryManyEntities(this.target!, where, order, relations, skip, take);
@@ -78,7 +78,9 @@ class LocalDataSourceAccessor<T extends EntityTarget<ObjectLiteral>> {
     }
   }
 
-  async updateEntity(values: OptionalKeysMapper<T>): Promise<OperationResponse<OptionalKeysMapper<T> & ObjectLiteral>> {
+  async updateEntity(
+    values: ExcludeFuctionsMapper<OptionalKeysMapper<T>>
+  ): Promise<OperationResponse<OptionalKeysMapper<T> & ObjectLiteral>> {
     this.checkTargetAndDataSource();
     try {
       const data = await this.DS!.updateEntity(this.target!, values);
@@ -125,15 +127,15 @@ class LocalDataSourceAccessor<T extends EntityTarget<ObjectLiteral>> {
  * @param target Target entity.
  * @returns
  */
-export const initializeDataSourceAccessor = <T extends EntityTarget<ObjectLiteral>>(
-  DS: LocalDataSourceType,
-  target: T
-) => new LocalDataSourceAccessor<T>(DS, target);
+export const initializeDataSourceAccessor = <T>(DS: LocalDataSourceType, target: EntityTarget<T>) =>
+  new LocalDataSourceAccessor<T>(DS, target);
 
 /**
  * Initialize main datasource accessor using datasource with default options.
  * @param target Target entity.
  * @returns
  */
-export const initializeMainDataSourceAccessorDefault = <T extends EntityTarget<ObjectLiteral>>(target: T) =>
+export const initializeMainDataSourceAccessorDefault = <T>(target: EntityTarget<T>) =>
   LocalDataSourceAccessor.constructMainDefault(target);
+
+export type LocalDataSourceAccessorType<T> = LocalDataSourceAccessor<T>;
