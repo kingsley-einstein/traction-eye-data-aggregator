@@ -1,4 +1,12 @@
-import { BeforeInsert, BeforeUpdate, Column, CreateDateColumn, PrimaryColumn, UpdateDateColumn } from "typeorm";
+import {
+  AfterLoad,
+  BeforeInsert,
+  BeforeUpdate,
+  Column,
+  CreateDateColumn,
+  PrimaryColumn,
+  UpdateDateColumn,
+} from "typeorm";
 import { LPSourceIdentifiers } from "../../constants";
 import { randomUUID } from "crypto";
 
@@ -18,16 +26,16 @@ export abstract class SharedLPEntity {
   @Column({ type: "varchar", nullable: false })
   token1Address: string;
 
-  @Column({ type: "bigint", nullable: false })
+  @Column({ type: "varchar", nullable: false })
   reserve0: bigint;
 
-  @Column({ type: "bigint", nullable: false })
+  @Column({ type: "varchar", nullable: false })
   reserve1: bigint;
 
-  @Column({ type: "double", nullable: false })
+  @Column({ type: "decimal", nullable: false })
   lpFee: number;
 
-  @Column({ type: "double", nullable: false })
+  @Column({ type: "decimal", nullable: false })
   priceUSD: number;
 
   @CreateDateColumn({ type: "timestamp with time zone", default: () => "CURRENT_TIMESTAMP(6)" })
@@ -43,6 +51,8 @@ export abstract class SharedLPEntity {
   @BeforeInsert()
   sharedPreInsert() {
     this.id = randomUUID();
+    this.lpFee = Number(this.lpFee);
+    this.priceUSD = Number(this.priceUSD);
 
     this.createdAt = new Date();
     this.updatedAt = new Date();
@@ -51,5 +61,11 @@ export abstract class SharedLPEntity {
   @BeforeUpdate()
   preUpdate() {
     this.updatedAt = new Date();
+  }
+
+  @AfterLoad()
+  preQuery() {
+    this.lpFee = Number(this.lpFee);
+    this.priceUSD = Number(this.priceUSD);
   }
 }

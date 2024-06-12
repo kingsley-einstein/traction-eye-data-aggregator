@@ -2,7 +2,6 @@ import {
   DataSource,
   type MixedList,
   type DataSourceOptions,
-  type ObjectLiteral,
   type EntityTarget,
   type FindOptionsWhere,
   type FindOptionsOrder,
@@ -13,14 +12,15 @@ import { ServiceNames } from "../constants";
 import { join } from "path";
 import { ExcludeFuctionsMapper, OptionalKeysMapper } from "../utils/mappers";
 import { SnakeNamingStrategy } from "typeorm-naming-strategies";
+import { ENV } from "../variables";
 
 type WhichDBServer = "ston.fi" | "dedust";
 
-const ServerServiceMap = new Map<WhichDBServer, ServiceNames>();
+const ServerServiceMap = new Map<WhichDBServer, ServiceNames | "localhost">();
 
 // Set map values
-ServerServiceMap.set("ston.fi", ServiceNames.STON_FI);
-ServerServiceMap.set("dedust", ServiceNames.DEDUST);
+ServerServiceMap.set("ston.fi", ENV === "docker" ? ServiceNames.STON_FI : "localhost");
+ServerServiceMap.set("dedust", ENV === "docker" ? ServiceNames.DEDUST : "localhost");
 
 interface LocalDataSourceOpts {
   /**
@@ -146,7 +146,7 @@ class LocalDataSource {
 
   public async insertEntity<T>(target: EntityTarget<T>, values: ExcludeFuctionsMapper<T>) {
     try {
-      const value = await this.DS.getRepository(target).save(values);
+      const value = await this.DS.getRepository(target).save(this.DS.getRepository(target).create(values));
       return value;
     } catch (error) {
       throw error;

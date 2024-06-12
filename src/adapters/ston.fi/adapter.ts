@@ -1,10 +1,12 @@
 import assert from "assert";
 import { LocalDataSourceAccessorType } from "../../modules";
 import { SharedHTTPModule } from "../../shared/http";
-import AdapterBase from "../base";
+import LPAdapterBase from "../lp-base";
 import { LPEntity } from "./database/entities/LPEntity";
-import { HttpResponseTypes } from "../../constants";
+import { HttpResponseTypes, LPSourceIdentifiers } from "../../constants";
 import { Address, beginCell, fromNano } from "@ton/core";
+import { ExcludeFuctionsMapper } from "../../utils/mappers";
+import { SharedLPEntity } from "../../shared/database/entity";
 
 interface PoolInterface {
   address: string;
@@ -33,7 +35,7 @@ interface PoolInterface {
   token1_balance: string;
 }
 
-export class StonFi extends AdapterBase {
+export class StonFi extends LPAdapterBase {
   public _$: SharedHTTPModule;
 
   constructor(lpDS: LocalDataSourceAccessorType<LPEntity>) {
@@ -45,13 +47,43 @@ export class StonFi extends AdapterBase {
     this.checkHTTPModuleInitialized();
 
     try {
-      const stonfiV1Pools = await this._$.get<PoolInterface[]>("/api/v1/pools");
+      const stonfiV1Pools = await this._$.get<{ pool_list: PoolInterface[] }>("/v1/pools");
 
       assert.ok(
         stonfiV1Pools.responseType === HttpResponseTypes.SUCCESS,
-        "request_to_stonfi_failed with message: " + stonfiV1Pools.data
+        "request to stonfi failed with message: " + stonfiV1Pools.data
       );
-      return stonfiV1Pools.data as PoolInterface[];
+      return (stonfiV1Pools.data as { pool_list: PoolInterface[] }).pool_list;
+    } catch (error: any) {
+      throw error;
+    }
+  }
+
+  async insertPoolsInDB() {
+    try {
+      const allLPs = await this.lpDS.readManyEntities({ exchangeIdentifier: LPSourceIdentifiers.STON_FI });
+      const stonfiPools = await this.getAllLPRemote<PoolInterface>();
+      const stonfiPoolsFilter = stonfiPools.filter(pool => !allLPs.data.map(en => en.onChainId).includes(pool.address));
+      const derivedRecordsMapper: Record<keyof ExcludeFuctionsMapper<SharedLPEntity>, keyof PoolInterface> = {} as any;
+
+      derivedRecordsMapper.lpFee = "lp_fee";
+      derivedRecordsMapper.onChainId = "address";
+      derivedRecordsMapper.priceUSD = "lp_price_usd";
+      derivedRecordsMapper.reserve0 = "reserve0";
+      derivedRecordsMapper.reserve1 = "reserve1";
+      derivedRecordsMapper.token0Address = "token0_address";
+      derivedRecordsMapper.token1Address = "token1_address";
+
+      const derivedRecords = stonfiPoolsFilter.map(x =>
+        this.deriveNewLPRecord(x, derivedRecordsMapper, {} as ExcludeFuctionsMapper<LPEntity>)
+      );
+      const insertionPromises = derivedRecords.map(record => this.lpDS.insertEntity(record));
+      const insertionPromisesResolved = await Promise.all(insertionPromises);
+
+      assert.ok(
+        insertionPromisesResolved.every(op => op.responseType === "success"),
+        "insertion_not_entirely_successful"
+      );
     } catch (error: any) {
       throw error;
     }

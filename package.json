@@ -5,7 +5,9 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "format": "prettier --write **/**/*.{ts,json}",
-    "build": "rm -rf build && npx tsc -p ."
+    "build": "rm -rf build && npx tsc -p .",
+    "generate:migrations:stonfi": "npx typeorm-ts-node-commonjs migration:generate ./src/adapters/ston.fi/database/migrations/ston -d ./src/adapters/ston.fi/database/index.ts",
+    "run:migrations:stonfi": "npx typeorm-ts-node-commonjs migration:run -d ./src/adapters/ston.fi/database/index.ts"
   },
   "keywords": [],
   "author": "",
@@ -14,21 +16,29 @@
   "dependencies": {
     "@orbs-network/ton-access": "^2.3.3",
     "@ton/core": "^0.56.3",
+    "@ton/crypto": "^3.2.0",
     "@ton/ton": "^13.11.2",
     "axios": "^1.7.2",
     "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
     "express": "^4.19.2",
     "lodash": "^4.17.21",
     "morgan": "^1.10.0",
+    "node-cron": "^3.0.3",
     "pg": "^8.12.0",
     "reflect-metadata": "^0.2.2",
     "typeorm": "^0.3.20",
-    "typeorm-naming-strategies": "^4.1.0"
+    "typeorm-naming-strategies": "^4.1.0",
+    "zod": "^3.23.8"
   },
   "devDependencies": {
+    "@types/cors": "^2.8.17",
     "@types/express": "^4.17.21",
     "@types/lodash": "^4.17.5",
+    "@types/morgan": "^1.9.9",
     "@types/node": "^20.14.2",
+    "@types/node-cron": "^3.0.11",
+    "ts-node": "^10.9.2",
     "typescript": "^5.4.5"
   }
 }
