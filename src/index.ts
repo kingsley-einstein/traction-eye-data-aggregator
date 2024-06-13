@@ -16,6 +16,14 @@ app.use("/", mainRouter);
 app.use(errorMiddleware);
 
 const connectDatasources = () => datasources.forEach(ds => ds.connect());
+const connectTONClients = () =>
+  lpAdapters.forEach(async ad => {
+    try {
+      await ad.initializeTONClient();
+    } catch (error: any) {
+      console.error(error);
+    }
+  });
 const insertPools = () =>
   lpAdapters.forEach(async ad => {
     try {
@@ -25,17 +33,22 @@ const insertPools = () =>
     }
   });
 
-const schedule = cron.schedule("*/2 * * * * *", () => {
-  try {
-    console.info("running insert operation for LPs");
-    insertPools();
-  } catch (error: any) {
-    console.error(error);
-  }
-});
+const schedule = cron.schedule(
+  "*/2 * * * *",
+  () => {
+    try {
+      console.info("running insert operation for LPs");
+      insertPools();
+    } catch (error: any) {
+      console.error(error);
+    }
+  },
+  { scheduled: false }
+);
 
 app.listen(port, () => {
   connectDatasources();
-  //setTimeout(() => schedule.start(), 5000);
+  connectTONClients();
+  setTimeout(() => schedule.start(), 5000);
   console.log("server running on " + port);
 });

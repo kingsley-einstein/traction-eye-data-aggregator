@@ -92,36 +92,23 @@ export class StonFi extends LPAdapterBase {
   async getAllLPRecordsForUser<LPEntity>(userAddress: string): Promise<LPEntity[]> {
     this.validateAndParseAddress(userAddress);
     const entities = await this.lpDS.readManyEntities({});
-    const poolsWithGreaterThan0 = await this.checkLPBalancesForUserAndReturnPools(
-      userAddress,
-      entities.data.map(x => x.onChainId)
-    );
+    const poolsByUser = await this.getAllLPRemoteForWallet<PoolInterface>(userAddress);
 
-    return <LPEntity[]>entities.data.filter(x => poolsWithGreaterThan0.includes(x.onChainId));
+    return <LPEntity[]>entities.data.filter(x => poolsByUser.map(p => p.address).includes(x.onChainId));
   }
 
-  async checkLPBalancesForUserAndReturnPools(userAddress: string, pools: string[]) {
+  async getAllLPRemoteForWallet<PoolInterface>(userAddress: string): Promise<PoolInterface[]> {
+    this.checkHTTPModuleInitialized();
+    this.validateAndParseAddress(userAddress);
+
     try {
-      this.validateAndParseAddress(userAddress);
-      const poolsGreaterThan0: string[] = [];
+      const stonfiV1Pools = await this._$.get<{ pool_list: PoolInterface[] }>(`/v1/wallets/${userAddress}/pools`);
 
-      for (const pool of pools) {
-        const run0 = await this.CLIENT.runMethod(Address.parse(pool), "get_wallet_address", [
-          {
-            type: "slice",
-            cell: beginCell().storeAddress(Address.parse(userAddress)).endCell(),
-          },
-        ]);
-
-        const walletAddress = run0.stack.readAddress();
-
-        const run1 = await this.CLIENT.runMethod(walletAddress, "get_wallet_data");
-        const balance = Number(fromNano(run1.stack.readBigNumber()));
-
-        if (balance > 0) poolsGreaterThan0.push(pool);
-      }
-
-      return poolsGreaterThan0;
+      assert.ok(
+        stonfiV1Pools.responseType === HttpResponseTypes.SUCCESS,
+        "request to stonfi failed with message: " + stonfiV1Pools.data
+      );
+      return (stonfiV1Pools.data as { pool_list: PoolInterface[] }).pool_list;
     } catch (error: any) {
       throw error;
     }

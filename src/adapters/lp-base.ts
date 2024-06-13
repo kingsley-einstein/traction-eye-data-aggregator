@@ -75,7 +75,7 @@ export default abstract class LPAdapterBase {
   }
 
   validateAndParseAddress(userAddress: string) {
-    assert.ok(Address.isAddress(userAddress), "invalid_ton_address");
+    assert.ok(Address.isAddress(Address.parse(userAddress)), "invalid_ton_address");
     if (Address.isRaw(userAddress)) {
       userAddress = Address.parse(userAddress).toString();
     }
