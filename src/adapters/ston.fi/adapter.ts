@@ -4,7 +4,6 @@ import { SharedHTTPModule } from "../../shared/http";
 import LPAdapterBase from "../lp-base";
 import { LPEntity } from "./database/entities/LPEntity";
 import { HttpResponseTypes, LPSourceIdentifiers } from "../../constants";
-import { Address, beginCell, fromNano } from "@ton/core";
 import { ExcludeFuctionsMapper } from "../../utils/mappers";
 import { SharedLPEntity } from "../../shared/database/entity";
 
