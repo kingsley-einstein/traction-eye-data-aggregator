@@ -1,6 +1,5 @@
 import { getHttpEndpoint } from "@orbs-network/ton-access";
 import { TonClient } from "@ton/ton";
-import { Address } from "@ton/core";
 import assert from "assert";
 import isNil from "lodash/isNil";
 import { LocalDataSourceAccessorType } from "../modules";
@@ -38,6 +37,7 @@ export default abstract class LPAdapterBase {
 
   abstract getAllLPRemote<T>(): Promise<T[]>;
   abstract insertPoolsInDB(): Promise<void>;
+  abstract updateExistingPoolsInDB(): Promise<void>;
 
   deriveNewLPRecord<S extends Record<string, any>, T extends ExcludeFuctionsMapper<SharedLPEntity>>(
     t: S,
@@ -58,6 +58,18 @@ export default abstract class LPAdapterBase {
     return entity;
   }
 
+  mutateLPRecord<S extends Record<string, any>>(
+    t: S,
+    record: Record<keyof ExcludeFuctionsMapper<SharedLPEntity>, keyof S>,
+    entity: SharedLPEntity
+  ) {
+    entity.reserve0 = t[record.reserve0];
+    entity.reserve1 = t[record.reserve1];
+    entity.lpFee = t[record.lpFee];
+    entity.priceUSD = t[record.priceUSD];
+    return entity;
+  }
+
   abstract getAllLPRecordsForUser<T extends SharedLPEntity>(userAddress: string): Promise<T[]>;
 
   getAllLPRecords(skip: number = 0, limit: number = 20): Promise<SharedLPEntity[]> {
@@ -72,12 +84,5 @@ export default abstract class LPAdapterBase {
       .catch((error: any) => {
         return Promise.reject(error);
       });
-  }
-
-  validateAndParseAddress(userAddress: string) {
-    assert.ok(Address.isAddress(Address.parse(userAddress)), "invalid_ton_address");
-    if (Address.isRaw(userAddress)) {
-      userAddress = Address.parse(userAddress).toString();
-    }
   }
 }

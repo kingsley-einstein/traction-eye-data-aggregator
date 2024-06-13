@@ -6,6 +6,7 @@ import { LPEntity } from "./database/entities/LPEntity";
 import { HttpResponseTypes, LPSourceIdentifiers } from "../../constants";
 import { ExcludeFuctionsMapper } from "../../utils/mappers";
 import { SharedLPEntity } from "../../shared/database/entity";
+import { validateAndParseAddress } from "../../utils/chain-utils";
 
 interface PoolInterface {
   address: string;
@@ -88,8 +89,40 @@ export class StonFi extends LPAdapterBase {
     }
   }
 
+  async updateExistingPoolsInDB() {
+    try {
+      const allLPs = await this.lpDS.readManyEntities({ exchangeIdentifier: LPSourceIdentifiers.STON_FI });
+      const stonfiPools = await this.getAllLPRemote<PoolInterface>();
+      const stonfiPoolsFilter = stonfiPools.filter(pool => allLPs.data.map(en => en.onChainId).includes(pool.address));
+      const derivedRecordsMapper: Record<keyof ExcludeFuctionsMapper<SharedLPEntity>, keyof PoolInterface> = {} as any;
+
+      // The only values that could possibly change
+      derivedRecordsMapper.lpFee = "lp_fee";
+      derivedRecordsMapper.priceUSD = "lp_price_usd";
+      derivedRecordsMapper.reserve0 = "reserve0";
+      derivedRecordsMapper.reserve1 = "reserve1";
+
+      const mutatedRecords = stonfiPoolsFilter.map(x =>
+        this.mutateLPRecord(
+          x,
+          derivedRecordsMapper,
+          allLPs.data.find(s => s.onChainId === x.address)
+        )
+      );
+      const updatePromises = mutatedRecords.map(record => this.lpDS.updateEntity(record as any));
+      const updatePromisesResolved = await Promise.all(updatePromises);
+
+      assert.ok(
+        updatePromisesResolved.every(op => op.responseType === "success"),
+        "update_not_entirely_successful"
+      );
+    } catch (error: any) {
+      throw error;
+    }
+  }
+
   async getAllLPRecordsForUser<LPEntity>(userAddress: string): Promise<LPEntity[]> {
-    this.validateAndParseAddress(userAddress);
+    validateAndParseAddress(userAddress);
     const entities = await this.lpDS.readManyEntities({});
     const poolsByUser = await this.getAllLPRemoteForWallet<PoolInterface>(userAddress);
 
@@ -98,7 +131,7 @@ export class StonFi extends LPAdapterBase {
 
   async getAllLPRemoteForWallet<PoolInterface>(userAddress: string): Promise<PoolInterface[]> {
     this.checkHTTPModuleInitialized();
-    this.validateAndParseAddress(userAddress);
+    validateAndParseAddress(userAddress);
 
     try {
       const stonfiV1Pools = await this._$.get<{ pool_list: PoolInterface[] }>(`/v1/wallets/${userAddress}/pools`);

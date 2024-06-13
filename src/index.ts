@@ -32,6 +32,14 @@ const insertPools = () =>
       console.error(error);
     }
   });
+const updatePools = () =>
+  lpAdapters.forEach(async ad => {
+    try {
+      await ad.updateExistingPoolsInDB();
+    } catch (error: any) {
+      console.error(error);
+    }
+  });
 
 const schedule = cron.schedule(
   "*/2 * * * *",
@@ -39,6 +47,8 @@ const schedule = cron.schedule(
     try {
       console.info("running insert operation for LPs");
       insertPools();
+      console.info("running update operation for LPs");
+      updatePools();
     } catch (error: any) {
       console.error(error);
     }
