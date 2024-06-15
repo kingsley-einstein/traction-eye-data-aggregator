@@ -17,3 +17,9 @@ export const lpAdaptersReqParamsWithAddress = z.object({
   dex: z.nativeEnum(LPSourceIdentifiers),
   wallet: z.string().refine(arg => Address.isAddress(Address.parse(arg)), { message: "invalid ton address" }),
 });
+
+export const lpAdaptersReqParamsWithAddresses = z.object({
+  dex: z.nativeEnum(LPSourceIdentifiers),
+  wallet: z.string().refine(arg => Address.isAddress(Address.parse(arg)), { message: "invalid ton address" }),
+  pool: z.string().refine(arg => Address.isAddress(Address.parse(arg)), { message: "invalid pool address" }),
+});

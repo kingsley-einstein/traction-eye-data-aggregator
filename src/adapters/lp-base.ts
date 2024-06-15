@@ -7,6 +7,13 @@ import { SharedHTTPModule } from "../shared/http";
 import { ExcludeFuctionsMapper } from "../utils/mappers";
 import { SharedLPEntity } from "../shared/database/entity";
 
+export interface LPData {
+  token0: string;
+  token1: string;
+  token0Amount: number;
+  token1Amount: number;
+}
+
 export default abstract class LPAdapterBase {
   public CLIENT: TonClient | null = null;
   public lpDS: LocalDataSourceAccessorType<SharedLPEntity>;
@@ -38,6 +45,7 @@ export default abstract class LPAdapterBase {
   abstract getAllLPRemote<T>(): Promise<T[]>;
   abstract insertPoolsInDB(): Promise<void>;
   abstract updateExistingPoolsInDB(): Promise<void>;
+  abstract getLPAccountData(poolAddress: string, userAddress: string): Promise<LPData>;
 
   deriveNewLPRecord<S extends Record<string, any>, T extends ExcludeFuctionsMapper<SharedLPEntity>>(
     t: S,

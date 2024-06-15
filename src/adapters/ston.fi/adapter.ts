@@ -1,12 +1,14 @@
 import assert from "assert";
 import { LocalDataSourceAccessorType } from "../../modules";
 import { SharedHTTPModule } from "../../shared/http";
-import LPAdapterBase from "../lp-base";
+import LPAdapterBase, { LPData } from "../lp-base";
 import { LPEntity } from "./database/entities/LPEntity";
-import { HttpResponseTypes, LPSourceIdentifiers } from "../../constants";
+import { HttpResponseTypes, LPSourceIdentifiers, STON_FI_ROUTER } from "../../constants";
 import { ExcludeFuctionsMapper } from "../../utils/mappers";
 import { SharedLPEntity } from "../../shared/database/entity";
-import { validateAndParseAddress } from "../../utils/chain-utils";
+import { isContractInitialized, runMethod, validateAndParseAddress } from "../../utils/chain-utils";
+import isNil from "lodash/isNil";
+import { Address, beginCell, fromNano } from "@ton/core";
 
 interface PoolInterface {
   address: string;
@@ -141,6 +143,65 @@ export class StonFi extends LPAdapterBase {
         "request to stonfi failed with message: " + stonfiV1Pools.data
       );
       return (stonfiV1Pools.data as { pool_list: PoolInterface[] }).pool_list;
+    } catch (error: any) {
+      throw error;
+    }
+  }
+
+  async getLPAccountData(poolAddress: string, userAddress: string): Promise<LPData> {
+    try {
+      // Check that client is initialized
+      this.checkClientInitialized();
+      // Validate addresses
+      validateAndParseAddress(poolAddress);
+      validateAndParseAddress(userAddress);
+
+      // Parse addresses
+      const user = Address.parse(userAddress);
+
+      // Get user wallet address for pool
+      const userWalletAddress = (
+        await runMethod(this.CLIENT, poolAddress, "get_wallet_address", [
+          { type: "slice", cell: beginCell().storeAddress(user).endCell() },
+        ])
+      ).readAddress();
+
+      const userWalletInitialized = await isContractInitialized(this.CLIENT, userWalletAddress.toString());
+
+      assert.ok(userWalletInitialized, "wallet_not_active_for_this_pool");
+
+      // Get wallet data
+      const walletData = (await runMethod(this.CLIENT, userWalletAddress.toString(), "get_wallet_data"))
+      const balance = walletData.readBigNumber();
+
+      // Get pool data
+      const poolJettonData = (await runMethod(this.CLIENT, poolAddress, "get_jetton_data"));
+      const poolData = (await runMethod(this.CLIENT, poolAddress, "get_pool_data"));
+
+      const totalSupply = poolJettonData.readBigNumber();
+      const reserve0 = poolData.readNumber();
+      const reserve1 = poolData.readNumber();
+      const token0WalletAddress = poolData.readAddress();
+      const token1WalletAddress = poolData.readAddress();
+
+      // Get associated Jettons for wallets
+      const token0 = (await runMethod(this.CLIENT, token0WalletAddress.toString(), "get_wallet_data"))
+        .skip(2)
+        .readAddress()
+        .toString();
+      const token1 = (await runMethod(this.CLIENT, token1WalletAddress.toString(), "get_wallet_data"))
+        .skip(2)
+        .readAddress()
+        .toString();
+
+      // Percentage held by user
+      const percentage = Number(balance) / Number(totalSupply);
+      return {
+        token0,
+        token1,
+        token0Amount: Number(fromNano(percentage * Number(reserve0))),
+        token1Amount: Number(fromNano(percentage * Number(reserve1))),
+      };
     } catch (error: any) {
       throw error;
     }

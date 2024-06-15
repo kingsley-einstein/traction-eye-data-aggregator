@@ -22,3 +22,14 @@ export enum HttpResponseTypes {
   SUCCESS = "SUCCESS",
   FAILED = "FAILED",
 }
+
+export enum StableCoins {
+  jUSDT = "EQBynBO23ywHy_CgarY9NK9FTz0yDsG82PtcbSTQgGoXwiuA",
+  USDT = "EQCxE6mUtQJKFnGfaROTKOt1lZbDiiX1kCixRv7Nw2Id_sDs",
+}
+
+export enum ProxyTONs {
+  STON_FI = "EQCM3B12QK1e4yZSf8GtBRT0aLMNyEsBc_DhVfRRtOEffLez",
+}
+
+export const STON_FI_ROUTER = "EQB3ncyBUTjZUA5EnFKR5_EnOMI9V1tTEAAPaiU71gc4TiUt";

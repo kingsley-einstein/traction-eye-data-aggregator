@@ -2,7 +2,12 @@ import { type Response, type Request, type NextFunction } from "express";
 import LPAdapterBase from "../adapters/lp-base";
 import stonFi from "../adapters/ston.fi";
 import { HttpStatusCodes, LPSourceIdentifiers } from "../constants";
-import { lpAdaptersReqParams, lpAdaptersReqParamsWithAddress, q } from "../shared/validators";
+import {
+  lpAdaptersReqParams,
+  lpAdaptersReqParamsWithAddress,
+  lpAdaptersReqParamsWithAddresses,
+  q,
+} from "../shared/validators";
 import assert from "assert";
 import { isNil } from "lodash";
 
@@ -38,6 +43,22 @@ export const getAllLPByUser = async (req: Request, res: Response, next: NextFunc
     const start = (parsedQuery.page - 1) * parsedQuery.limit;
     const end = parsedQuery.page * parsedQuery.limit;
     const result = (await lpAdapter.getAllLPRecordsForUser(parsedParams.wallet)).slice(start, end);
+    return res.status(HttpStatusCodes.OK).json({ result });
+  } catch (error: any) {
+    next(error);
+  }
+};
+
+export const getLPDataForUser = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const parsedParams = lpAdaptersReqParamsWithAddresses.parse(req.params);
+
+    assert.ok(!isNil(parsedParams.dex), "dex_path_param_required");
+    assert.ok(!isNil(parsedParams.wallet), "wallet_path_param_required");
+    assert.ok(!isNil(parsedParams.pool), "pool_path_param_required");
+
+    const lpAdapter = lpAdapters.get(parsedParams.dex);
+    const result = await lpAdapter.getLPAccountData(parsedParams.pool, parsedParams.wallet);
     return res.status(HttpStatusCodes.OK).json({ result });
   } catch (error: any) {
     next(error);
