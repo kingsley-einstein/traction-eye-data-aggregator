@@ -3,11 +3,10 @@ import { LocalDataSourceAccessorType } from "../../modules";
 import { SharedHTTPModule } from "../../shared/http";
 import LPAdapterBase, { LPData } from "../lp-base";
 import { LPEntity } from "./database/entities/LPEntity";
-import { HttpResponseTypes, LPSourceIdentifiers, STON_FI_ROUTER } from "../../constants";
+import { HttpResponseTypes, LPSourceIdentifiers } from "../../constants";
 import { ExcludeFuctionsMapper } from "../../utils/mappers";
 import { SharedLPEntity } from "../../shared/database/entity";
 import { isContractInitialized, runMethod, validateAndParseAddress } from "../../utils/chain-utils";
-import isNil from "lodash/isNil";
 import { Address, beginCell, fromNano } from "@ton/core";
 
 interface PoolInterface {
@@ -171,16 +170,16 @@ export class StonFi extends LPAdapterBase {
       assert.ok(userWalletInitialized, "wallet_not_active_for_this_pool");
 
       // Get wallet data
-      const walletData = (await runMethod(this.CLIENT, userWalletAddress.toString(), "get_wallet_data"))
+      const walletData = await runMethod(this.CLIENT, userWalletAddress.toString(), "get_wallet_data");
       const balance = walletData.readBigNumber();
 
       // Get pool data
-      const poolJettonData = (await runMethod(this.CLIENT, poolAddress, "get_jetton_data"));
-      const poolData = (await runMethod(this.CLIENT, poolAddress, "get_pool_data"));
+      const poolJettonData = await runMethod(this.CLIENT, poolAddress, "get_jetton_data");
+      const poolData = await runMethod(this.CLIENT, poolAddress, "get_pool_data");
 
       const totalSupply = poolJettonData.readBigNumber();
-      const reserve0 = poolData.readNumber();
-      const reserve1 = poolData.readNumber();
+      const reserve0 = poolData.readBigNumber();
+      const reserve1 = poolData.readBigNumber();
       const token0WalletAddress = poolData.readAddress();
       const token1WalletAddress = poolData.readAddress();
 
@@ -199,8 +198,8 @@ export class StonFi extends LPAdapterBase {
       return {
         token0,
         token1,
-        token0Amount: Number(fromNano(percentage * Number(reserve0))),
-        token1Amount: Number(fromNano(percentage * Number(reserve1))),
+        token0Amount: percentage * Number(fromNano(reserve0)),
+        token1Amount: percentage * Number(fromNano(reserve1)),
       };
     } catch (error: any) {
       throw error;
