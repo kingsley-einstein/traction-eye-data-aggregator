@@ -3,11 +3,31 @@ import { LocalDataSourceAccessorType } from "../../modules";
 import { SharedHTTPModule } from "../../shared/http";
 import LPAdapterBase, { LPData } from "../lp-base";
 import { LPEntity } from "./database/entities/LPEntity";
-import { HttpResponseTypes, LPSourceIdentifiers } from "../../constants";
+import { HttpResponseTypes, LPSourceIdentifiers, ProxyTONs } from "../../constants";
 import { ExcludeFuctionsMapper } from "../../utils/mappers";
 import { SharedLPEntity } from "../../shared/database/entity";
 import { isContractInitialized, runMethod, validateAndParseAddress } from "../../utils/chain-utils";
 import { Address, beginCell, fromNano } from "@ton/core";
+
+interface DedustAssetInterface {
+  address?: string;
+  type: "jetton" | "native";
+}
+
+interface DedustPoolStatsInterface {
+  fees: string[];
+  volume: string[];
+}
+
+interface DedustPoolInterface {
+  address: string;
+  totalSupply: string;
+  tradeFee: string;
+  assets: DedustAssetInterface[];
+  lastPrice: string | null;
+  reserves: string[];
+  stats: DedustPoolStatsInterface;
+}
 
 // Ston.fi's API response pool structure
 interface NativePoolInterface {
@@ -37,25 +57,56 @@ interface NativePoolInterface {
   token1_balance: string;
 }
 
-export class StonFi extends LPAdapterBase {
+export class Dedust extends LPAdapterBase {
   public _$: SharedHTTPModule;
 
   constructor(lpDS: LocalDataSourceAccessorType<LPEntity>) {
     super(lpDS);
-    this._$ = SharedHTTPModule.constructWithBaseURL("https://api.ston.fi");
+    this._$ = SharedHTTPModule.constructWithBaseURL("https://api.dedust.io");
+  }
+
+  private dedustPoolInterfaceToNativePoolInterface(d: DedustPoolInterface): NativePoolInterface {
+    return {
+      address: d.address,
+      apy_1d: "0",
+      apy_30d: "0",
+      apy_7d: "0",
+      lp_account_address: "",
+      lp_balance: "0",
+      lp_total_supply: d.totalSupply,
+      lp_fee: d.tradeFee,
+      lp_price_usd: d.lastPrice ?? "0",
+      deprecated: false,
+      lp_total_supply_usd: "uncalculated",
+      lp_wallet_address: "",
+      ref_fee: "0",
+      reserve0: d.reserves[0],
+      reserve1: d.reserves[1],
+      token0_address: d.assets[0].type === "native" ? ProxyTONs.DEDUST : d.assets[0].address,
+      token1_address: d.assets[1].type === "native" ? ProxyTONs.DEDUST : d.assets[1].address,
+      token0_balance: "uncalculated",
+      token1_balance: "uncalculated",
+      collected_token0_protocol_fee: "0",
+      collected_token1_protocol_fee: "0",
+      router_address: "does_not_apply",
+      protocol_fee: "does_not_apply",
+      protocol_fee_address: "does_not_apply",
+    };
   }
 
   async getAllLPRemote<NativePoolInterface>(): Promise<NativePoolInterface[]> {
     this.checkHTTPModuleInitialized();
 
     try {
-      const stonfiV1Pools = await this._$.get<{ pool_list: NativePoolInterface[] }>("/v1/pools");
+      const dedustV2Pools = await this._$.get<DedustPoolInterface[]>("/v2/pools");
 
       assert.ok(
-        stonfiV1Pools.responseType === HttpResponseTypes.SUCCESS,
-        "request to stonfi failed with message: " + stonfiV1Pools.data
+        dedustV2Pools.responseType === HttpResponseTypes.SUCCESS,
+        "request to dedust failed with message: " + dedustV2Pools.data
       );
-      return (stonfiV1Pools.data as { pool_list: NativePoolInterface[] }).pool_list;
+      return (dedustV2Pools.data as DedustPoolInterface[]).map<NativePoolInterface>(
+        d => this.dedustPoolInterfaceToNativePoolInterface(d) as NativePoolInterface
+      );
     } catch (error: any) {
       throw error;
     }
@@ -63,9 +114,9 @@ export class StonFi extends LPAdapterBase {
 
   async insertPoolsInDB() {
     try {
-      const allLPs = await this.lpDS.readManyEntities({ exchangeIdentifier: LPSourceIdentifiers.STON_FI });
-      const stonfiPools = await this.getAllLPRemote<NativePoolInterface>();
-      const stonfiPoolsFilter = stonfiPools.filter(pool => !allLPs.data.map(en => en.onChainId).includes(pool.address));
+      const allLPs = await this.lpDS.readManyEntities({ exchangeIdentifier: LPSourceIdentifiers.DEDUST });
+      const dedustPools = await this.getAllLPRemote<NativePoolInterface>();
+      const dedustPoolsFilter = dedustPools.filter(pool => !allLPs.data.map(en => en.onChainId).includes(pool.address));
       const derivedRecordsMapper: Record<keyof ExcludeFuctionsMapper<SharedLPEntity>, keyof NativePoolInterface> =
         {} as any;
 
@@ -77,7 +128,7 @@ export class StonFi extends LPAdapterBase {
       derivedRecordsMapper.token0Address = "token0_address";
       derivedRecordsMapper.token1Address = "token1_address";
 
-      const derivedRecords = stonfiPoolsFilter.map(x =>
+      const derivedRecords = dedustPoolsFilter.map(x =>
         this.deriveNewLPRecord(x, derivedRecordsMapper, {} as ExcludeFuctionsMapper<LPEntity>)
       );
       const insertionPromises = derivedRecords.map(record => this.lpDS.insertEntity(record));
@@ -94,9 +145,9 @@ export class StonFi extends LPAdapterBase {
 
   async updateExistingPoolsInDB() {
     try {
-      const allLPs = await this.lpDS.readManyEntities({ exchangeIdentifier: LPSourceIdentifiers.STON_FI });
-      const stonfiPools = await this.getAllLPRemote<NativePoolInterface>();
-      const stonfiPoolsFilter = stonfiPools.filter(pool => allLPs.data.map(en => en.onChainId).includes(pool.address));
+      const allLPs = await this.lpDS.readManyEntities({ exchangeIdentifier: LPSourceIdentifiers.DEDUST });
+      const dedustPools = await this.getAllLPRemote<NativePoolInterface>();
+      const dedustPoolsFilter = dedustPools.filter(pool => allLPs.data.map(en => en.onChainId).includes(pool.address));
       const derivedRecordsMapper: Record<keyof ExcludeFuctionsMapper<SharedLPEntity>, keyof NativePoolInterface> =
         {} as any;
 
@@ -106,7 +157,7 @@ export class StonFi extends LPAdapterBase {
       derivedRecordsMapper.reserve0 = "reserve0";
       derivedRecordsMapper.reserve1 = "reserve1";
 
-      const mutatedRecords = stonfiPoolsFilter.map(x =>
+      const mutatedRecords = dedustPoolsFilter.map(x =>
         this.mutateLPRecord(
           x,
           derivedRecordsMapper,
@@ -138,13 +189,13 @@ export class StonFi extends LPAdapterBase {
     validateAndParseAddress(userAddress);
 
     try {
-      const stonfiV1Pools = await this._$.get<{ pool_list: NativePoolInterface[] }>(`/v1/wallets/${userAddress}/pools`);
+      const dedustV1Pools = await this._$.get<{ pool_list: NativePoolInterface[] }>(`/v1/wallets/${userAddress}/pools`);
 
       assert.ok(
-        stonfiV1Pools.responseType === HttpResponseTypes.SUCCESS,
-        "request to stonfi failed with message: " + stonfiV1Pools.data
+        dedustV1Pools.responseType === HttpResponseTypes.SUCCESS,
+        "request to dedust failed with message: " + dedustV1Pools.data
       );
-      return (stonfiV1Pools.data as { pool_list: NativePoolInterface[] }).pool_list;
+      return (dedustV1Pools.data as { pool_list: NativePoolInterface[] }).pool_list;
     } catch (error: any) {
       throw error;
     }

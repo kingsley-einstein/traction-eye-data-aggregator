@@ -8,7 +8,9 @@
     "build": "rm -rf build && npx tsc -p .",
     "dev": "ts-node src/index.ts",
     "generate:migrations:stonfi": "npx typeorm-ts-node-commonjs migration:generate ./src/adapters/ston.fi/database/migrations/ston -d ./src/adapters/ston.fi/database/index.ts",
-    "run:migrations:stonfi": "npx typeorm-ts-node-commonjs migration:run -d ./src/adapters/ston.fi/database/index.ts"
+    "run:migrations:stonfi": "npx typeorm-ts-node-commonjs migration:run -d ./src/adapters/ston.fi/database/index.ts",
+    "generate:migrations:dedust": "npx typeorm-ts-node-commonjs migration:generate ./src/adapters/dedust/database/migrations/dust -d ./src/adapters/dedust/database/index.ts",
+    "run:migrations:dedust": "npx typeorm-ts-node-commonjs migration:run -d ./src/adapters/dedust/database/index.ts"
   },
   "keywords": [],
   "author": "",

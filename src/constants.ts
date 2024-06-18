@@ -30,6 +30,7 @@ export enum StableCoins {
 
 export enum ProxyTONs {
   STON_FI = "EQCM3B12QK1e4yZSf8GtBRT0aLMNyEsBc_DhVfRRtOEffLez",
+  DEDUST = "_dedust_ton",
 }
 
 export const STON_FI_ROUTER = "EQB3ncyBUTjZUA5EnFKR5_EnOMI9V1tTEAAPaiU71gc4TiUt";
